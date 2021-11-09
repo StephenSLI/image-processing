@@ -15,7 +15,12 @@ func main() {
 
 	defer file.Close()
 
-	err := imaging.BlurGaussian(file, 7)
+	targetImg, err := imaging.BlurMean(file, 26)
+
+	f, _ := os.Create("C:\\Users\\stephen\\Pictures\\dog-2.png")
+	defer f.Close()
+
+	png.Encode(f, targetImg)
 
 	if err != nil {
 		log.Fatalln(err)
