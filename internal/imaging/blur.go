@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"io"
 	"math"
+	"sync"
 )
 
 func validateAndGatherImage(img image.Image, kernelSize int) ([][]Pixel, error) {
@@ -34,7 +35,10 @@ func validateAndGatherImage(img image.Image, kernelSize int) ([][]Pixel, error) 
 	return pixels, nil
 }
 
-func sumValuesWithinKernel(x, y, kernelSize int, pixels [][]Pixel) Pixel {
+// determineMeanValuesWithinKernel will iterate within the given kernel value range and
+// determine the total mean value within the selected kernel size. The returned value being
+// the new pixel which could be placed within the center of the kernel of the new image
+func determineMeanValuesWithinKernel(x, y, kernelSize int, pixels [][]Pixel) color.RGBA {
 	startIdx := x - int(math.Floor(float64(kernelSize)/2)) - 1
 	endIdx := startIdx + kernelSize - 1
 
@@ -59,11 +63,11 @@ func sumValuesWithinKernel(x, y, kernelSize int, pixels [][]Pixel) Pixel {
 		}
 	}
 
-	return Pixel{
-		R: result.R / kernelInnerSize,
-		G: result.G / kernelInnerSize,
-		B: result.B / kernelInnerSize,
-		A: result.A / kernelInnerSize,
+	return color.RGBA{
+		R: uint8(result.R / kernelInnerSize),
+		G: uint8(result.G / kernelInnerSize),
+		B: uint8(result.B / kernelInnerSize),
+		A: uint8(result.A / kernelInnerSize),
 	}
 }
 
@@ -76,7 +80,11 @@ func BlurMean(file io.Reader, kernelSize int) (image.Image, error) {
 	// output of our blur otherwise our math will be broken and not work  as
 	// expected.
 	targetImg := image.NewRGBA(img.Bounds())
-	pixels, _ := validateAndGatherImage(img, kernelSize)
+	pixels, err := validateAndGatherImage(img, kernelSize)
+
+	if err != nil {
+		return nil, err
+	}
 
 	// iterate over our entire image pixels in blocks of our kernel
 	// size. Taking an average of pixel values and applying this
@@ -89,24 +97,29 @@ func BlurMean(file io.Reader, kernelSize int) (image.Image, error) {
 	// TODO: this can be done with go routines to be faster, we are only reading
 	// not updating the value and that value will never change allowing us to
 	// be very fast.
+	var wg sync.WaitGroup
+
 	for i := startingOffset; i < len(pixels)-startingOffset; i++ {
 		for j := startingOffset; j < len(pixels[i])-startingOffset; j++ {
-			// now we must sum all the RGB values within our kernel size
-			// and then go and divide this by our total kernel size which
-			// would be kernelSize x kernelSize. This would be our new
-			// RGB values for the center pixel.
-			newPixel := sumValuesWithinKernel(i, j, kernelSize, pixels)
+			wg.Add(1)
 
-			targetImg.SetRGBA(j, i, color.RGBA{
-				R: uint8(newPixel.R),
-				G: uint8(newPixel.G),
-				B: uint8(newPixel.B),
-				A: uint8(newPixel.A),
-			})
+			startX := i
+			startY := j
 
-			// fmt.Printf("center pixel %v, size: %d\n", pixel, kernelInnerSize)
+			go func() {
+				// now we must sum all the RGB values within our kernel size
+				// and then go and divide this by our total kernel size which
+				// would be kernelSize x kernelSize. This would be our new
+				// RGB values for the center pixel.
+				newPixel := determineMeanValuesWithinKernel(startX, startY, kernelSize, pixels)
+				targetImg.SetRGBA(startY, startX, newPixel)
+
+				wg.Done()
+			}()
 		}
 	}
+
+	wg.Wait()
 
 	return targetImg, nil
 }

@@ -6,23 +6,29 @@ import (
 	"image/png"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
+	start := time.Now()
+
 	// You can register another format here
 	image.RegisterFormat("png", "png", png.Decode, png.DecodeConfig)
-	file, _ := os.Open("C:\\Users\\stephen\\Pictures\\dog.png")
+	file, _ := os.Open("C:\\Users\\stephen\\Pictures\\tower.png")
 
 	defer file.Close()
 
-	targetImg, err := imaging.BlurMean(file, 26)
-
-	f, _ := os.Create("C:\\Users\\stephen\\Pictures\\dog-2.png")
-	defer f.Close()
-
-	png.Encode(f, targetImg)
+	targetImg, err := imaging.BlurMean(file, 15)
 
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	f, _ := os.Create("C:\\Users\\stephen\\Pictures\\tower-blur.png")
+	defer f.Close()
+
+	png.Encode(f, targetImg)
+
+	elapsed := time.Since(start)
+	log.Printf("Binomial took %s", elapsed)
 }
