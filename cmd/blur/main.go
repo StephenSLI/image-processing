@@ -14,17 +14,17 @@ func main() {
 
 	// You can register another format here
 	image.RegisterFormat("png", "png", png.Decode, png.DecodeConfig)
-	file, _ := os.Open("C:\\Users\\stephen\\Pictures\\tower.png")
+	file, _ := os.Open("C:\\Users\\stephen\\Pictures\\dog.png")
 
 	defer file.Close()
 
-	targetImg, err := imaging.BlurMean(file, 15)
+	targetImg, err := imaging.BlurGaussian(file, 31)
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	f, _ := os.Create("C:\\Users\\stephen\\Pictures\\tower-blur.png")
+	f, _ := os.Create("C:\\Users\\stephen\\Pictures\\dog-blur.png")
 	defer f.Close()
 
 	png.Encode(f, targetImg)

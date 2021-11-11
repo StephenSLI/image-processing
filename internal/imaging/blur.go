@@ -35,6 +35,41 @@ func validateAndGatherImage(img image.Image, kernelSize int) ([][]Pixel, error) 
 	return pixels, nil
 }
 
+func determineGaussianValuesWithinKernel(x, y, kernelSize int, gaussianKernel [][]float64, pixels [][]Pixel) color.RGBA {
+	startIdx := x - int(math.Floor(float64(kernelSize)/2)) - 1
+	endIdx := startIdx + kernelSize - 1
+
+	startYIdx := y - int(math.Floor(float64(kernelSize)/2)) - 1
+	endYIdx := startYIdx + kernelSize - 1
+
+	kernelInnerSize := kernelSize * kernelSize
+
+	result := Pixel{
+		R: 0,
+		G: 0,
+		B: 0,
+		A: 0,
+	}
+
+	for i := startIdx; i < endIdx; i++ {
+		for j := startYIdx; j < endYIdx; j++ {
+			result.R += int(float64(pixels[i][j].R) * gaussianKernel[i-startIdx][j-startYIdx])
+			result.G += int(float64(pixels[i][j].G) * gaussianKernel[i-startIdx][j-startYIdx])
+			result.B += int(float64(pixels[i][j].B) * gaussianKernel[i-startIdx][j-startYIdx])
+			result.A += int(float64(pixels[i][j].A) * gaussianKernel[i-startIdx][j-startYIdx])
+		}
+	}
+
+	final := color.RGBA{
+		R: uint8(math.Min(float64(result.R/kernelInnerSize), 255)),
+		G: uint8(math.Min(float64(result.G/kernelInnerSize), 255)),
+		B: uint8(math.Min(float64(result.B/kernelInnerSize), 255)),
+		A: uint8(math.Min(float64(result.A/kernelInnerSize), 255)),
+	}
+
+	return final
+}
+
 // determineMeanValuesWithinKernel will iterate within the given kernel value range and
 // determine the total mean value within the selected kernel size. The returned value being
 // the new pixel which could be placed within the center of the kernel of the new image
@@ -94,25 +129,22 @@ func BlurMean(file io.Reader, kernelSize int) (image.Image, error) {
 	// TODO: THIS SKIPS EDGES AND WORKS WITH A PERFECT SIZE FIRST, UPDATE TO INCLUDE EDGES
 	startingOffset := int(math.Floor(float64(kernelSize)/2) + 1)
 
-	// TODO: this can be done with go routines to be faster, we are only reading
-	// not updating the value and that value will never change allowing us to
-	// be very fast.
 	var wg sync.WaitGroup
 
 	for i := startingOffset; i < len(pixels)-startingOffset; i++ {
 		for j := startingOffset; j < len(pixels[i])-startingOffset; j++ {
 			wg.Add(1)
 
-			startX := i
-			startY := j
+			i := i
+			j := j
 
 			go func() {
 				// now we must sum all the RGB values within our kernel size
 				// and then go and divide this by our total kernel size which
 				// would be kernelSize x kernelSize. This would be our new
 				// RGB values for the center pixel.
-				newPixel := determineMeanValuesWithinKernel(startX, startY, kernelSize, pixels)
-				targetImg.SetRGBA(startY, startX, newPixel)
+				newPixel := determineMeanValuesWithinKernel(i, j, kernelSize, pixels)
+				targetImg.SetRGBA(j, i, newPixel)
 
 				wg.Done()
 			}()
@@ -124,7 +156,7 @@ func BlurMean(file io.Reader, kernelSize int) (image.Image, error) {
 	return targetImg, nil
 }
 
-func BlurGaussian(file io.Reader, kernelSize int) error {
+func BlurGaussian(file io.Reader, kernelSize int) (image.Image, error) {
 	//  our source image which will be used to generate our pixels and
 	// apply our blur.
 	img, _, _ := image.Decode(file)
@@ -132,10 +164,46 @@ func BlurGaussian(file io.Reader, kernelSize int) error {
 	// the target image of the blur, we must have a new image which will be the
 	// output of our blur otherwise our math will be broken and not work  as
 	// expected.
-	//	targetImg := image.NewRGBA(img.Bounds())
+	targetImg := image.NewRGBA(img.Bounds())
+	pixels, err := validateAndGatherImage(img, kernelSize)
 
-	pixels, _ := validateAndGatherImage(img, kernelSize)
+	if err != nil {
+		return nil, err
+	}
 
-	fmt.Println(pixels)
-	return nil
+	kernel := helpers.KernelGaussian(kernelSize)
+
+	// iterate over our entire image pixels in blocks of our kernel
+	// size. Use the Gaussian kernel to determine the new value
+	// of that given pixel position.
+
+	// IGNORE EDGES
+	// TODO: THIS SKIPS EDGES AND WORKS WITH A PERFECT SIZE FIRST, UPDATE TO INCLUDE EDGES
+	startingOffset := int(math.Floor(float64(kernelSize)/2) + 1)
+
+	//var wg sync.WaitGroup
+
+	for i := startingOffset; i < len(pixels)-startingOffset; i++ {
+		for j := startingOffset; j < len(pixels[i])-startingOffset; j++ {
+			//wg.Add(1)
+
+			i := i
+			j := j
+
+			//go func() {
+			// now we must sum all the RGB values within our kernel size
+			// and then go and divide this by our total kernel size which
+			// would be kernelSize x kernelSize. This would be our new
+			// RGB values for the center pixel.
+			newPixel := determineGaussianValuesWithinKernel(i, j, kernelSize, kernel, pixels)
+			targetImg.SetRGBA(j, i, newPixel)
+
+			//wg.Done()
+			//}()
+		}
+	}
+
+	//wg.Wait()
+
+	return targetImg, nil
 }
