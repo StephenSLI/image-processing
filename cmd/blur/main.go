@@ -12,22 +12,28 @@ import (
 func main() {
 	start := time.Now()
 
+	sourceName := "dog"
+
 	// You can register another format here
 	image.RegisterFormat("png", "png", png.Decode, png.DecodeConfig)
-	file, _ := os.Open("C:\\Users\\stephen\\Pictures\\dog.png")
+	file, _ := os.Open("C:\\Users\\stephen\\Pictures\\" + sourceName + ".png")
+	fileTwo, _ := os.Open("C:\\Users\\stephen\\Pictures\\" + sourceName + ".png")
 
 	defer file.Close()
+	defer fileTwo.Close()
 
-	targetImg, err := imaging.BlurGaussian(file, 31)
+	targetImg, _ := imaging.BlurGaussian(file, 31, 20)
+	targetImgMean, _ := imaging.BlurMean(fileTwo, 21)
 
-	if err != nil {
-		log.Fatalln(err)
-	}
+	first, _ := os.Create("C:\\Users\\stephen\\Pictures\\" + sourceName + "-g-blur.png")
+	defer first.Close()
 
-	f, _ := os.Create("C:\\Users\\stephen\\Pictures\\dog-blur.png")
-	defer f.Close()
+	png.Encode(first, targetImg)
 
-	png.Encode(f, targetImg)
+	second, _ := os.Create("C:\\Users\\stephen\\Pictures\\" + sourceName + "-mean-blur.png")
+	defer second.Close()
+
+	png.Encode(second, targetImgMean)
 
 	elapsed := time.Since(start)
 	log.Printf("Binomial took %s", elapsed)

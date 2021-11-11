@@ -156,7 +156,7 @@ func BlurMean(file io.Reader, kernelSize int) (image.Image, error) {
 	return targetImg, nil
 }
 
-func BlurGaussian(file io.Reader, kernelSize int) (image.Image, error) {
+func BlurGaussian(file io.Reader, kernelSize int, sig float64) (image.Image, error) {
 	//  our source image which will be used to generate our pixels and
 	// apply our blur.
 	img, _, _ := image.Decode(file)
@@ -171,7 +171,7 @@ func BlurGaussian(file io.Reader, kernelSize int) (image.Image, error) {
 		return nil, err
 	}
 
-	kernel := helpers.KernelGaussian(kernelSize)
+	kernel := helpers.KernelGaussian(kernelSize, sig)
 
 	// iterate over our entire image pixels in blocks of our kernel
 	// size. Use the Gaussian kernel to determine the new value

@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -14,31 +13,24 @@ func Min(x, y int) int {
 }
 
 func Gaussian(x float64, s float64) float64 {
-	//sig := 2 * s * s
-
-	//return math.Exp(-(math.Pow(x, 2) / sig))
-
-	return math.Pi * (1.0 / s) * math.Exp(-0.5*(math.Pow(x, 2.0)/math.Pow(s, 2.0)))
+	sig := 2 * s * s
+	return math.Exp(-(math.Pow(x, 2) / sig))
 }
 
-func KernelGaussian(kernelSize int) [][]float64 {
+func KernelGaussian(kernelSize int, sig float64) [][]float64 {
 	arr := ARangeAutoStep(0, kernelSize)
 
-	fmt.Println("before", arr)
 	for index, val := range arr {
-		arr[index] = Gaussian(val, 3)
+		arr[index] = Gaussian(val, sig)
 	}
 
 	kernel := make([][]float64, kernelSize)
-	fmt.Println("after", arr)
 
 	for i := 0; i < len(arr); i++ {
 		for j := 0; j < len(arr); j++ {
 			kernel[i] = append(kernel[i], arr[i]*arr[j])
 		}
 	}
-
-	fmt.Println("guassian matrix", kernel)
 
 	return kernel
 }
