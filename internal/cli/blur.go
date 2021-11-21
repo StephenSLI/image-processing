@@ -39,14 +39,15 @@ func PerformBlurOnImage(c *cli.Context) error {
 	var blurringError error
 
 	kernelSize := c.Int("kernel")
+	iterations := c.Int("iterations")
 
 	switch strings.ToLower(blurKind) {
 	case "mean":
-		targetImg, blurringError = imaging.BlurMean(file, kernelSize)
+		targetImg, blurringError = imaging.BlurMean(file, kernelSize, iterations)
 		break
 	case "gaussian":
 		sigma := c.Float64("sigma")
-		targetImg, blurringError = imaging.BlurGaussian(file, kernelSize, sigma)
+		targetImg, blurringError = imaging.BlurGaussian(file, kernelSize, iterations, sigma)
 		break
 	}
 

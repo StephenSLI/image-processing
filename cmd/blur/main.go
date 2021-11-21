@@ -15,7 +15,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:   "blur",
-				Usage:  "Perform a blur on a given image",
+				Usage:  "Perform a blur on a given image.",
 				Action: localCli.PerformBlurOnImage,
 				Flags: []cli.Flag{
 					&cli.PathFlag{
@@ -27,15 +27,21 @@ func main() {
 					&cli.StringSliceFlag{
 						Name:        "type",
 						Aliases:     []string{"t"},
-						Usage:       "The type of blur to apply",
+						Usage:       "The type of blur to apply.",
 						Required:    true,
 						Value:       cli.NewStringSlice("mean", "gaussian"),
 						DefaultText: "mean",
 					},
 					&cli.IntFlag{
+						Name:    "iterations",
+						Aliases: []string{"i"},
+						Usage:   "The number of iterations to apply to the blur.",
+						Value:   3,
+					},
+					&cli.IntFlag{
 						Name:    "kernel",
 						Aliases: []string{"k"},
-						Usage:   "The size of the kernel used on the blur",
+						Usage:   "The size of the kernel used on the blur.",
 						Value:   31,
 					},
 					&cli.Float64Flag{
