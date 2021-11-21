@@ -21,3 +21,10 @@
 # vendor/
 
 .idea
+
+bin
+
+assets/*-blur.*
+
+!vendor/README.md
+vendor

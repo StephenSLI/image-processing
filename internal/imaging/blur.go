@@ -3,7 +3,7 @@ package imaging
 import (
 	"errors"
 	"fmt"
-	"github.com/mambadev/image-processing/internal/helpers"
+	"github.com/stephensli/image-processing/internal/helpers"
 	"image"
 	"image/color"
 	"io"

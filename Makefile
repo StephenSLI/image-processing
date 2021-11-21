@@ -1,8 +1,9 @@
 .PHONY: build
-build-blur:
+build:
 	go build -o bin/blur ./cmd/blur/main.go
 
-.PHONY run-blur:
+.PHONY: run
+run:
 	go run ./cmd/blur/main.go
 
 .PHONY: test
