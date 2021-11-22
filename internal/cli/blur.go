@@ -29,27 +29,34 @@ func PerformBlurOnImage(c *cli.Context) error {
 		return errors.New(fmt.Sprintf("file extension not supported, extension %s", fileExt))
 	}
 
-	fmt.Printf("file path %s\n", fullFilePath)
-	fmt.Printf("kind path %s\n", blurKind)
-
 	file, _ := os.Open(fullFilePath)
 	defer file.Close()
 
-	var targetImg image.Image
-	var blurringError error
+	var blurAction imaging.Blur
 
 	kernelSize := c.Int("kernel")
 	iterations := c.Int("iterations")
 
-	switch strings.ToLower(blurKind) {
-	case "mean":
-		targetImg, blurringError = imaging.BlurMean(file, kernelSize, iterations)
-		break
-	case "gaussian":
-		sigma := c.Float64("sigma")
-		targetImg, blurringError = imaging.BlurGaussian(file, kernelSize, iterations, sigma)
-		break
+	img, _, _ := image.Decode(file)
+
+	blurAct := imaging.BlurAction{
+		KernelSize: kernelSize,
+		Iterations: iterations,
+		Image:      img,
 	}
+
+	if blurKind == "mean" {
+		blurAction = &imaging.BlurActionMean{BlurAction: blurAct}
+	}
+
+	if blurKind == "gaussian" {
+		blurAction = &imaging.BlurActionGaussian{
+			Sigma:      c.Float64("sigma"),
+			BlurAction: blurAct,
+		}
+	}
+
+	targetImg, blurringError := blurAction.Blur()
 
 	if blurringError != nil {
 		return blurringError
