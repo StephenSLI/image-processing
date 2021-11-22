@@ -1,6 +1,7 @@
 package imaging
 
 import (
+	"github.com/stephensli/image-processing/internal/helpers"
 	"image"
 	"image/color"
 	"math"
@@ -15,13 +16,13 @@ type BlurActionMean struct {
 // determine the total mean value within the selected kernel size. The returned value being
 // the new pixel which could be placed within the center of the kernel of the new image
 func (b *BlurActionMean) getUpdatedPixel(x, y int, pixels [][]Pixel) color.RGBA {
-	startIdx := x - int(math.Floor(float64(b.KernelSize)/2)) - 1
-	endIdx := startIdx + b.KernelSize - 1
+	startIdx := helpers.Max(x-int(math.Floor(float64(b.KernelSize)/2))-1, 0)
+	endIdx := helpers.Min(startIdx+b.KernelSize-1, len(pixels))
 
-	startYIdx := y - int(math.Floor(float64(b.KernelSize)/2)) - 1
-	endYIdx := startYIdx + b.KernelSize - 1
+	startYIdx := helpers.Max(y-int(math.Floor(float64(b.KernelSize)/2))-1, 0)
+	endYIdx := helpers.Min(startYIdx+b.KernelSize-1, len(pixels[0]))
 
-	kernelInnerSize := b.KernelSize * b.KernelSize
+	kernelInnerSize := 0
 
 	result := Pixel{
 		R: 0,
@@ -32,6 +33,11 @@ func (b *BlurActionMean) getUpdatedPixel(x, y int, pixels [][]Pixel) color.RGBA 
 
 	for i := startIdx; i < endIdx; i++ {
 		for j := startYIdx; j < endYIdx; j++ {
+			// we increment it here since edges will  not have NxN items,
+			//so it's easier to have an adjustable value. Otherwise, on the
+			// edges it can seem darker.
+			kernelInnerSize += 1
+
 			result.R += pixels[i][j].R
 			result.G += pixels[i][j].G
 			result.B += pixels[i][j].B
@@ -40,10 +46,10 @@ func (b *BlurActionMean) getUpdatedPixel(x, y int, pixels [][]Pixel) color.RGBA 
 	}
 
 	return color.RGBA{
-		R: uint8(result.R / kernelInnerSize),
-		G: uint8(result.G / kernelInnerSize),
-		B: uint8(result.B / kernelInnerSize),
-		A: uint8(result.A / kernelInnerSize),
+		R: uint8(math.Min(float64(result.R/kernelInnerSize), 255)),
+		G: uint8(math.Min(float64(result.G/kernelInnerSize), 255)),
+		B: uint8(math.Min(float64(result.B/kernelInnerSize), 255)),
+		A: uint8(math.Min(float64(result.A/kernelInnerSize), 255)),
 	}
 }
 
@@ -70,14 +76,10 @@ func (b *BlurActionMean) Blur() (image.Image, error) {
 			return nil, pixelError
 		}
 
-		// IGNORE EDGES
-		// TODO: THIS SKIPS EDGES AND WORKS WITH A PERFECT SIZE FIRST, UPDATE TO INCLUDE EDGES
-		startingOffset := int(math.Floor(float64(b.KernelSize)/2) + 1)
-
 		var wg sync.WaitGroup
 
-		for i := startingOffset; i < len(pixels)-startingOffset; i++ {
-			for j := startingOffset; j < len(pixels[i])-startingOffset; j++ {
+		for i := 0; i < len(pixels); i++ {
+			for j := 0; j < len(pixels[i]); j++ {
 				wg.Add(1)
 
 				i := i

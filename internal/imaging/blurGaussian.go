@@ -15,13 +15,13 @@ type BlurActionGaussian struct {
 }
 
 func (b *BlurActionGaussian) getUpdatedPixel(x, y int, pixels [][]Pixel) color.RGBA {
-	startIdx := x - int(math.Floor(float64(b.KernelSize)/2)) - 1
-	endIdx := startIdx + b.KernelSize - 1
+	startIdx := helpers.Max(x-int(math.Floor(float64(b.KernelSize)/2))-1, 0)
+	endIdx := helpers.Min(startIdx+b.KernelSize-1, len(pixels))
 
-	startYIdx := y - int(math.Floor(float64(b.KernelSize)/2)) - 1
-	endYIdx := startYIdx + b.KernelSize - 1
+	startYIdx := helpers.Max(y-int(math.Floor(float64(b.KernelSize)/2))-1, 0)
+	endYIdx := helpers.Min(startYIdx+b.KernelSize-1, len(pixels[0]))
 
-	kernelInnerSize := b.KernelSize * b.KernelSize
+	kernelInnerSize := 0
 
 	result := Pixel{
 		R: 0,
@@ -32,6 +32,11 @@ func (b *BlurActionGaussian) getUpdatedPixel(x, y int, pixels [][]Pixel) color.R
 
 	for i := startIdx; i < endIdx; i++ {
 		for j := startYIdx; j < endYIdx; j++ {
+			// we increment it here since edges will  not have NxN items,
+			//so it's easier to have an adjustable value. Otherwise, on the
+			// edges it can seem darker.
+			kernelInnerSize += 1
+
 			result.R += int(float64(pixels[i][j].R) * b.kernel[i-startIdx][j-startYIdx])
 			result.G += int(float64(pixels[i][j].G) * b.kernel[i-startIdx][j-startYIdx])
 			result.B += int(float64(pixels[i][j].B) * b.kernel[i-startIdx][j-startYIdx])
@@ -73,14 +78,10 @@ func (b *BlurActionGaussian) Blur() (image.Image, error) {
 			return nil, pixelError
 		}
 
-		// IGNORE EDGES
-		// TODO: THIS SKIPS EDGES AND WORKS WITH A PERFECT SIZE FIRST, UPDATE TO INCLUDE EDGES
-		startingOffset := int(math.Floor(float64(b.KernelSize)/2) + 1)
-
 		var wg sync.WaitGroup
 
-		for i := startingOffset; i < len(pixels)-startingOffset; i++ {
-			for j := startingOffset; j < len(pixels[i])-startingOffset; j++ {
+		for i := 0; i < len(pixels); i++ {
+			for j := 0; j < len(pixels[i]); j++ {
 				wg.Add(1)
 
 				i := i

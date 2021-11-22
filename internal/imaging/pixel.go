@@ -12,9 +12,8 @@ type Pixel struct {
 	A int
 }
 
-// RgbaToPixel takes in the 257 RGBA values and converts them into a INT value (value / 257)
 func RgbaToPixel(r uint32, g uint32, b uint32, a uint32) Pixel {
-	return Pixel{int(r / 257), int(g / 257), int(b / 257), int(a / 257)}
+	return Pixel{int(r / 255), int(g / 255), int(b / 255), int(a / 255)}
 }
 
 // GetPixelsFromImage will take in a file reader and decode the content into an

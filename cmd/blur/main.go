@@ -48,7 +48,7 @@ func main() {
 						Name:    "sigma",
 						Aliases: []string{"s"},
 						Usage:   "Sets the sigma value if used in the blur, e.g Gaussian blur.",
-						Value:   20,
+						Value:   40,
 					},
 				},
 			},

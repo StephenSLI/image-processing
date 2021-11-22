@@ -12,6 +12,14 @@ func Min(x, y int) int {
 	return x
 }
 
+// Max returns the greater of x or y.
+func Max(x, y int) int {
+	if x > y {
+		return x
+	}
+	return y
+}
+
 func Gaussian(x float64, s float64) float64 {
 	sig := 2 * s * s
 	return math.Exp(-(math.Pow(x, 2) / sig))
