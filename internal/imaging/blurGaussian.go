@@ -1,11 +1,12 @@
 package imaging
 
 import (
-	"github.com/stephensli/image-processing/internal/helpers"
 	"image"
 	"image/color"
 	"math"
 	"sync"
+
+	"github.com/stephensli/image-processing/internal/helpers"
 )
 
 type BlurActionGaussian struct {
@@ -14,6 +15,31 @@ type BlurActionGaussian struct {
 	Sigma  float64
 }
 
+// kernelGaussian will generate a new kernel to be used in determining the new
+// pixel value. Each kernel value be based on the gaussian function with a shift
+// based on the sigma value.
+//
+// https://en.wikipedia.org/wiki/Gaussian_function
+func kernelGaussian(kernelSize int, sig float64) [][]float64 {
+	arr := helpers.ARangeAutoStep(0, kernelSize)
+
+	for index, val := range arr {
+		arr[index] = helpers.Gaussian(val, sig)
+	}
+
+	kernel := make([][]float64, kernelSize)
+
+	for i := 0; i < len(arr); i++ {
+		for j := 0; j < len(arr); j++ {
+			kernel[i] = append(kernel[i], arr[i]*arr[j])
+		}
+	}
+
+	return kernel
+}
+
+// getUpdatedPixel returns a new color.RGBA for the given pixel location provided
+// at the x, y position. The updated pixel will be based on the gaussian kernel.
 func (b *BlurActionGaussian) getUpdatedPixel(x, y int, pixels [][]Pixel) color.RGBA {
 	startIdx := helpers.Max(x-int(math.Floor(float64(b.KernelSize)/2))-1, 0)
 	endIdx := helpers.Min(startIdx+b.KernelSize-1, len(pixels))
@@ -56,51 +82,43 @@ func (b *BlurActionGaussian) getUpdatedPixel(x, y int, pixels [][]Pixel) color.R
 
 func (b *BlurActionGaussian) Blur() (image.Image, error) {
 	var targetImg *image.RGBA
-	var pixels [][]Pixel
-	var pixelError error
 
-	b.kernel = helpers.KernelGaussian(b.KernelSize, b.Sigma)
+	pixels, pixelError := b.validateAndGetImagePixels()
 
-	// iterate over our entire image pixels in blocks of our kernel
-	// size. Use the Gaussian kernel to determine the new value
-	// of that given pixel position.
+	// determine the kernel gaussian which will be used to determine the new
+	// pixel value by applying a gaussian weighting, the center pixel will
+	// contain the highest weighting, decreasing outwards.
+	b.kernel = kernelGaussian(b.KernelSize, b.Sigma)
 
 	for iter := 0; iter < b.Iterations; iter++ {
-		if iter == 0 {
-			pixels, pixelError = b.validateAndGetImagePixels()
-			targetImg = image.NewRGBA(b.Image.Bounds())
-		} else {
-			b.Image = targetImg
-			pixels, pixelError = b.validateAndGetImagePixels()
-			targetImg = image.NewRGBA(targetImg.Bounds())
-		}
+		targetImg = image.NewRGBA(b.Image.Bounds())
+
 		if pixelError != nil {
 			return nil, pixelError
 		}
 
 		var wg sync.WaitGroup
 
+		// iterate over each pixel within the image and determine the new pixel value.
+		// Once the new pixel value is determined, update the new target image pixel
+		// location.
 		for i := 0; i < len(pixels); i++ {
 			for j := 0; j < len(pixels[i]); j++ {
 				wg.Add(1)
 
-				i := i
-				j := j
-
-				go func() {
-					// now we must sum all the RGB values within our kernel size
-					// and then go and divide this by our total kernel size which
-					// would be kernelSize x kernelSize. This would be our new
-					// RGB values for the center pixel.
+				go func(i, j int, pixels [][]Pixel) {
 					newPixel := b.getUpdatedPixel(i, j, pixels)
 					targetImg.SetRGBA(j, i, newPixel)
 
 					wg.Done()
-				}()
+				}(i, j, pixels)
 			}
 		}
 
 		wg.Wait()
+
+		b.Image = targetImg
+		pixels, pixelError = b.validateAndGetImagePixels()
 
 	}
 
