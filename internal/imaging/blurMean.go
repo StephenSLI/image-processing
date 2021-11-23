@@ -1,11 +1,12 @@
 package imaging
 
 import (
-	"github.com/stephensli/image-processing/internal/helpers"
 	"image"
 	"image/color"
 	"math"
 	"sync"
+
+	"github.com/stephensli/image-processing/internal/helpers"
 )
 
 type BlurActionMean struct {
@@ -55,22 +56,11 @@ func (b *BlurActionMean) getUpdatedPixel(x, y int, pixels [][]Pixel) color.RGBA 
 
 func (b *BlurActionMean) Blur() (image.Image, error) {
 	var targetImg *image.RGBA
-	var pixels [][]Pixel
-	var pixelError error
 
-	// iterate over our entire image pixels in blocks of our kernel
-	// size. Taking an average of pixel values and applying this
-	// back into our new image position.
+	pixels, pixelError := b.validateAndGetImagePixels()
+
 	for iter := 0; iter < b.Iterations; iter++ {
-
-		if iter == 0 {
-			pixels, pixelError = b.validateAndGetImagePixels()
-			targetImg = image.NewRGBA(b.Image.Bounds())
-		} else {
-			b.Image = targetImg
-			pixels, pixelError = b.validateAndGetImagePixels()
-			targetImg = image.NewRGBA(targetImg.Bounds())
-		}
+		targetImg = image.NewRGBA(b.Image.Bounds())
 
 		if pixelError != nil {
 			return nil, pixelError
@@ -78,28 +68,26 @@ func (b *BlurActionMean) Blur() (image.Image, error) {
 
 		var wg sync.WaitGroup
 
+		// iterate over each pixel within the image and determine the new pixel value.
+		// Once the new pixel value is determined, update the new target image pixel
+		// location.
 		for i := 0; i < len(pixels); i++ {
 			for j := 0; j < len(pixels[i]); j++ {
 				wg.Add(1)
 
-				i := i
-				j := j
-
-				go func() {
-					// now we must sum all the RGB values within our kernel size
-					// and then go and divide this by our total kernel size which
-					// would be kernelSize x kernelSize. This would be our new
-					// RGB values for the center pixel.
+				go func(i, j int, pixels [][]Pixel) {
 					newPixel := b.getUpdatedPixel(i, j, pixels)
 					targetImg.SetRGBA(j, i, newPixel)
 
 					wg.Done()
-				}()
+				}(i, j, pixels)
 			}
 		}
 
 		wg.Wait()
 
+		b.Image = targetImg
+		pixels, pixelError = b.validateAndGetImagePixels()
 	}
 
 	return targetImg, nil
